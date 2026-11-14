@@ -1,0 +1,30 @@
+# Dependabot (free on private repositories): weekly version updates for npm and for the GitHub Actions the workflows
+# pin by commit, opened against main like any other change. Security updates for alerts are on in the repository
+# settings and are not limited by this schedule.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    target-branch: main
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Asia/Kathmandu
+    open-pull-requests-limit: 5
+    groups:
+      # Patch and minor updates arrive together; majors one by one, each reviewed on its own.
+      minor-and-patch:
+        update-types: [minor, patch]
+    labels: [dependencies]
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: main
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Asia/Kathmandu
+    groups:
+      actions:
+        patterns: ["*"]
+    labels: [dependencies]

@@ -1,45 +1,54 @@
 name: CI
 
+# The shared Guided Labs flow (prlama55/guidedlabs-ci): quick checks, database, integration and e2e jobs, the same in
+# every product. This file only says what each job runs here. Deploy workflows listen for "CI": keep the name.
 on:
   push:
-    branches: [main]
+    branches: [stage, main]
   pull_request:
+    branches: [stage, main]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # A newer push cancels checks in progress, but never on stage or main, where a migration or release may follow.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/stage' && github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
 
 env:
   TURBO_TELEMETRY_DISABLED: 1
   NEXT_TELEMETRY_DISABLED: 1
 
 jobs:
-  checks:
-    name: Lint · Typecheck · Test
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm format:check
-      - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm test
+  ci:
+    name: CI
+    uses: prlama55/guidedlabs-ci/.github/workflows/node-ci.yml@v1
+    permissions:
+      contents: read
+      actions: read # the stage check reads workflow runs
+    with:
+      # Known vulnerabilities are reported, not blocking, until they are fixed: then remove this line.
+      audit-blocking: false
+      node-version: "22"
+      quick: |
+        export TURBO_TELEMETRY_DISABLED=1 NEXT_TELEMETRY_DISABLED=1
+        pnpm format:check
+        pnpm lint
+        pnpm typecheck
+        pnpm test
 
+  # Product-only jobs, after the shared checks pass.
   build-web:
     name: Build web
+    needs: ci
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: checks
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: pnpm
@@ -48,13 +57,13 @@ jobs:
 
   render-integration:
     name: Render integration (Remotion)
+    needs: ci
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: checks
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: pnpm
@@ -65,17 +74,17 @@ jobs:
 
   build-desktop:
     name: Build desktop (${{ matrix.os }})
+    needs: ci
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
-    needs: checks
     strategy:
       fail-fast: false
       matrix:
         os: [macos-latest, windows-latest, ubuntu-latest]
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: pnpm
